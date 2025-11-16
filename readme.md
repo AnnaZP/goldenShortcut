@@ -1,4 +1,4 @@
-Original source :
+Original source from:
 
 # golden cursor#
 
