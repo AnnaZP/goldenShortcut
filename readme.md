@@ -1,3 +1,5 @@
+Original source:
+
 # golden cursor#
 
 * Author: salah atair, Joseph Lee
