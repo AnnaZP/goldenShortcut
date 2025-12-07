@@ -11,12 +11,12 @@ import shutil
 
 
 def onInstall():
-	positions = os.path.join(os.path.dirname(__file__), "..", "goldenCursor", "mousePositions")
+	profiles = os.path.join(os.path.dirname(__file__), "..", "goldenShortcut", "Profiles")
 	# Without importing old positions, saved positions would be lost.
-	newPositions = os.path.join(os.path.dirname(__file__), "mousePositions")
+	newProfiles = os.path.join(os.path.dirname(__file__), "Profiles")
 	# Migrate positions database.
-	if os.path.exists(positions):
+	if os.path.exists(profiles):
 		try:
-			shutil.copytree(positions, newPositions)
+			shutil.copytree(profiles, newProfiles)
 		except (IOError, WindowsError):
 			pass

@@ -16,26 +16,26 @@ def _(arg):
 # Add-on information variables
 addon_info = {
 	# add-on Name/identifier, internal for NVDA
-	"addon_name": "goldenCursor",
+	"addon_name": "goldenShortcut",
 	# Add-on summary, usually the user visible name of the addon.
 	# Translators: Summary for this add-on
 	# to be shown on installation and add-on information found in Add-ons Manager.
-	"addon_summary": _("Golden Cursor"),
+	"addon_summary": _("Golden Shortcut"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
-	"addon_description": _("Allows you to control the mouse movement with the keyboard. for further details please visit the addon guide help."),
+	"addon_description": _("Allows you to assign keyboard shortcuts to braille accords in Papenmeier braille terminals."),
 	# version
-	"addon_version": "5.1",
+	"addon_version": "1.0",
 	# Author(s)
-	"addon_author": "Salah Atair <atair1978@gmail.com>, Wafeeq Taher, Joseph Lee <joseph.lee22590@gmail.com>, Abdel <abdelkrim.bensaid@gmail.com>",
+	"addon_author": "Michal Kijewski",
 	# URL for the add-on documentation support
 	"addon_url": "https://addons.nvda-project.org/",
 	# Documentation file name
 	"addon_docFileName": "readme.html",
 	# Minimum NVDA version supported (e.g. "2018.3.0", minor version is optional)
-	"addon_minimumNVDAVersion": "2019.3",
+	"addon_minimumNVDAVersion": "2023",
 	# Last NVDA version supported/tested (e.g. "2018.4.0", ideally more recent than minimum version)
-	"addon_lastTestedNVDAVersion": "2021.2",
+	"addon_lastTestedNVDAVersion": "2025.1.2",
 	# Add-on update channel (default is None, denoting stable releases,
 	# and for development releases, use "dev".)
 	# Do not change unless you know what you are doing!
