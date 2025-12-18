@@ -4,7 +4,7 @@
 # Version 1.0
 # License GNU GPL
 # Date: 25/12/2025
-# work: Anna Zych-Pawlewicz + the authors of Golden Cursor
+# work: Michal Kijewski, Anna Zych-Pawlewicz and the authors of Golden Cursor
 
 # Define context sensitive keyboard shortcuts for Papenmeier braille terminals  
 
@@ -23,199 +23,220 @@ import api
 import winUser
 import versionInfo
 import addonHandler
+import logging
 
-##tu wykomentujemy translatora na razie
-#addonHandler.initTranslation()
+log = logging.getLogger("goldenShortcut")
+
+#z obecnym sconstruct nie mozna tego wykomentowac
+addonHandler.initTranslation()
 
 # Each global constant is prefixed with "GS".
 
 # Constants
 GSProfiles = os.path.join(globalVars.appArgs.configPath, "addons", "goldenShortcut", "Profiles")
-shotCut = "none"
 
 #we are not using this at the moment, not sure why GC is using it
 class EnterName(wx.TextEntryDialog):
-	"""
-	This subclass of the wx.TextEntryDialog class was created to
-	prevent multiple instances of the dialog box that propose to give a name to the current mouse position.
-	This dialog can be opened via the script_saveMousePosition accessible with the nvda+shift+l shortcut.
-	"""
-	# The following comes from exit dialog class from GUI package (credit: NV Access and Zahari from Bulgaria).
-	_instance = None
+    """
+    This subclass of the wx.TextEntryDialog class was created to
+    prevent multiple instances of the dialog box that propose to give a name to the current mouse position.
+    This dialog can be opened via the script_saveMousePosition accessible with the nvda+shift+l shortcut.
+    """
+    # The following comes from exit dialog class from GUI package (credit: NV Access and Zahari from Bulgaria).
+    _instance = None
 
-	def __new__(cls, parent, *args, **kwargs):
-		inst = cls._instance() if cls._instance else None
-		if not inst:
-			return super(cls, cls).__new__(cls, parent, *args, **kwargs)
-		return inst
+    def __new__(cls, parent, *args, **kwargs):
+        inst = cls._instance() if cls._instance else None
+        if not inst:
+            return super(cls, cls).__new__(cls, parent, *args, **kwargs)
+        return inst
 
-	def __init__(self, *args, **kwargs):
-		inst = EnterName._instance() if EnterName._instance else None
-		if inst:
-			return
-		# Use a weakref so the instance can die.
-		import weakref
-		EnterName._instance = weakref.ref(self)
+    def __init__(self, *args, **kwargs):
+        inst = EnterName._instance() if EnterName._instance else None
+        if inst:
+            return
+        # Use a weakref so the instance can die.
+        import weakref
+        EnterName._instance = weakref.ref(self)
 
-		super(EnterName, self).__init__(*args, **kwargs)
+        super(EnterName, self).__init__(*args, **kwargs)
 
 # beda potrzebne dwie takie klasy - jedna do trybu a druga do wprowadzania skrotow
 class ProfileList(wx.Dialog):
-	"""
-	This dialog is for listing the profiles saved for the current application
+    """
+    This dialog is for listing the profiles saved for the current application
     For now, it is accesible via script script_ProfileList activated by nvda+control+p shortcut
-	"""
-	# The following comes from exit dialog class from GUI package (credit: NV Access and Zahari from Bulgaria).
-	_instance = None
+    """
+    # The following comes from exit dialog class from GUI package (credit: NV Access and Zahari from Bulgaria).
+    _instance = None
 
-	def __new__(cls, parent, *args, **kwargs):
-		inst = cls._instance() if cls._instance else None
-		if not inst:
-			return super(cls, cls).__new__(cls, parent, *args, **kwargs)
-		return inst
+    def __new__(cls, parent, *args, **kwargs):
+        inst = cls._instance() if cls._instance else None
+        if not inst:
+            return super(cls, cls).__new__(cls, parent, *args, **kwargs)
+        return inst
 
-	def __init__(self, parent, appName=None):
-		inst = PositionsList._instance() if PositionsList._instance else None
-		if inst:
-			return
-		# Use a weakref so the instance can die.
-		import weakref
-		PositionsList._instance = weakref.ref(self)
+    def __init__(self, parent, appName=None):
+        inst = ProfileList._instance() if ProfileList._instance else None
+        if inst:
+            return
+        # Use a weakref so the instance can die.
+        import weakref
+        ProfileList._instance = weakref.ref(self)
 
-		if appName:
-			super(PositionsList, self).__init__(parent, title=_("Profile selector for %s") % (appName), size=(420, 300))
-			self.ListProfileList(appName=appName)
-		else:
-    #       TU JAKIS KoMUNIKAT BLEDU
+        if appName:
+            super(ProfileList, self).__init__(parent, title=_("Profile selector for %s") % (appName), size=(420, 300))
+            self.ListProfileList(appName=appName)
+        else:
+            #TU JAKIS KoMUNIKAT BLEDU
             gui.messageBox(
-				# Translators: An error displayed when the application on focus was not found.
-				_("Sorry, something went terribly wrong."),
-				_("Error"), wx.OK | wx.ICON_ERROR, self
-			)
+                # Translators: An error displayed when the application on focus was not found.
+                _("Sorry, something went terribly wrong."),
+                _("Error"), 
+                wx.OK | wx.ICON_ERROR, 
+                self
+            )
 
-	def ListProfileList(self, appName):
-		self.appName = appName
+    def ListProfileList(self, appName):
+        self.appName = appName
         # If the files path does not exist, create it now.
-		if not os.path.exists(GSProfiles):
+        if not os.path.exists(GSProfiles):
             os.mkdir(GSProfiles)
-		self.profiles = ConfigObj(os.path.join(GSProfiles, f"{appName}.gs"), encoding="UTF-8")
-		mainSizer = wx.BoxSizer(wx.VERTICAL)
-		sHelper = gui.guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
-		# Translators: The label for the list view of the profiles in the current application.
-		profilesText = _("&Saved profiles")
-		self.ListProfileList = sHelper.addLabeledControl(
-			profilesText, wx.ListCtrl, style=wx.LC_REPORT | wx.LC_SINGLE_SEL, size=(550, 350)
-		)
+        self.profiles = ConfigObj(os.path.join(GSProfiles, f"{appName}.gs"), encoding="UTF-8")
+        self.activeprof = None
+        if len(self.profiles) :
+            for entry in self.profiles.keys():
+                if entry == "activProf" :
+                    self.activeprof = self.profiles[entry]
+                    
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
+        sHelper = gui.guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
+        # Translators: The label for the list view of the profiles in the current application.
+        profilesText = _("&Saved profiles")
+        self.ListProfileList = sHelper.addLabeledControl(
+            profilesText, wx.ListCtrl, style=wx.LC_REPORT | wx.LC_SINGLE_SEL, size=(550, 350)
+        )
         self.listItems()
-        if(self.ListProfileList.GetItemCount()>0)
-            self.ListProfileList.Select(0, on=1)
-            self.ListProfileList.SetItemState(0, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
 		
-		bHelper = gui.guiHelper.ButtonHelper(orientation=wx.HORIZONTAL)
+        bHelper = gui.guiHelper.ButtonHelper(orientation=wx.HORIZONTAL)
 
-		activateButtonID = wx.NewIdRef()
-		# Translators: the button to activate a profile position.
-		bHelper.addButton(self, activateButtonID, _("&Activate"), wx.DefaultPosition)
+        activateButtonID = wx.NewIdRef()
+        # Translators: the button to activate a profile position.
+        bHelper.addButton(self, activateButtonID, _("&Activate"), wx.DefaultPosition)
 
-		defineButtonID = wx.NewIdRef()
-		# Translators: the button to define the shortcuts for this profile.
-		bHelper.addButton(self, defineButtonID, _("&Define"), wx.DefaultPosition)
+        defineButtonID = wx.NewIdRef()
+        # Translators: the button to define the shortcuts for this profile.
+        bHelper.addButton(self, defineButtonID, _("&Define"), wx.DefaultPosition)
 
-		renameButtonID = wx.NewIdRef()
-		# Translators: the button to rename a profile name.
-		bHelper.addButton(self, renameButtonID, _("&Rename"), wx.DefaultPosition)
+        renameButtonID = wx.NewIdRef()
+        # Translators: the button to rename a profile name.
+        bHelper.addButton(self, renameButtonID, _("&Rename"), wx.DefaultPosition)
 
-		deleteButtonID = wx.NewIdRef()
-		# Translators: the button to delete the profile.
-		bHelper.addButton(self, deleteButtonID, _("&Delete"), wx.DefaultPosition)
+        deleteButtonID = wx.NewIdRef()
+        # Translators: the button to delete the profile.
+        bHelper.addButton(self, deleteButtonID, _("&Delete"), wx.DefaultPosition)
 
-		newButtonID = wx.NewIdRef()
-		# Translators: the button to create a new profile for this app.
-		bHelper.addButton(self, newButtonID, _("&New"), wx.DefaultPosition)
+        newButtonID = wx.NewIdRef()
+        # Translators: the button to create a new profile for this app.
+        bHelper.addButton(self, newButtonID, _("&New"), wx.DefaultPosition)
 
-		# Translators: The label of a button to close the profile listing dialog.
-		bHelper.addButton(self, wx.ID_CLOSE, _("&Close"), wx.DefaultPosition)
+        # Translators: The label of a button to close the profile listing dialog.
+        bHelper.addButton(self, wx.ID_CLOSE, _("&Close"), wx.DefaultPosition)
 
-		sHelper.addItem(bHelper)
+        sHelper.addItem(bHelper)
 
-		self.Bind(wx.EVT_BUTTON, self.onActivate, id=activateButtonID)
-		self.Bind(wx.EVT_BUTTON, self.onDefine, id=defineButtonID)
+        self.Bind(wx.EVT_BUTTON, self.onActivate, id=activateButtonID)
+        self.Bind(wx.EVT_BUTTON, self.onDefine, id=defineButtonID)
         self.Bind(wx.EVT_BUTTON, self.onRename, id=renameButtonID)
-		self.Bind(wx.EVT_BUTTON, self.onDelete, id=deleteButtonID)
-		self.Bind(wx.EVT_BUTTON, self.onNew, id=newButtonID)
-		self.Bind(wx.EVT_BUTTON, lambda evt: self.Close(), id=wx.ID_CLOSE)
+        self.Bind(wx.EVT_BUTTON, self.onDelete, id=deleteButtonID)
+        self.Bind(wx.EVT_BUTTON, self.onNew, id=newButtonID)
+        self.Bind(wx.EVT_BUTTON, lambda evt: self.Close(), id=wx.ID_CLOSE)
 
-		# Borrowed from NVDA Core (add-ons manager).
-		# To allow the dialog to be closed with the escape key.
-		self.Bind(wx.EVT_CLOSE, self.onClose)
-		self.EscapeId = wx.ID_CLOSE
+        # Borrowed from NVDA Core (add-ons manager).
+        # To allow the dialog to be closed with the escape key.
+        self.Bind(wx.EVT_CLOSE, self.onClose)
+        self.EscapeId = wx.ID_CLOSE
 
-		mainSizer.Add(sHelper.sizer, border=gui.guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
-		self.Sizer = mainSizer
-		mainSizer.Fit(self)
-		self.ListProfileList.SetFocus()
-		self.CenterOnScreen()
+        mainSizer.Add(sHelper.sizer, border=gui.guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
+        self.Sizer = mainSizer
+        mainSizer.Fit(self)
+        self.ListProfileList.SetFocus()
+        self.CenterOnScreen()
         
     def listItems(self):
         # Translators: the column in profile list to identify the profile name.
-		self.ListProfileList.InsertColumn(0, _("Name"), width=150)
-		self.ListProfileList.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onActivate)
+        self.ListProfileList.InsertColumn(0, _("Name"), width=150)
+        self.ListProfileList.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onActivate)
 		
         if len(self.profiles):
+            item_count=-1
             for entry in sorted(self.profiles.keys()):
-                self.ListProfileList.Append((entry))
+                if entry != "activProf":
+                    self.ListProfileList.Append((entry,))
+                    item_count = item_count+1
+                if entry == self.activeprof :
+                    self.ListProfileList.Select(item_count, on=1)
+                    self.ListProfileList.SetItemState(item_count, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
 
-	def onRename(self, event):
-		if self.ListProfileList.GetItemCount() == 0:
+    def onRename(self, event):
+        if self.ListProfileList.GetItemCount() == 0:
             return;
         index = self.ListProfileList.GetFirstSelected()
-		oldName = self.ListProfileList.GetItemText(index)
-		name = wx.GetTextFromUser(
-			# Translators: The label of a field to enter a new name for a profile.
-			_("New name"),
-			# Translators: The title of the dialog to rename a profile.
-			_("Rename"), oldName
-		)
-		# When escape is pressed, an empty string is returned.
-		if name in ("", oldName):
-			return
-		if name in self.positions:
-			gui.messageBox(
-				# Translators: An error displayed when renaming a profile
-				# with the new name already exists.
-				_("Another profile has the same name as the entered name. Please choose a different name."),
-				_("Error"), wx.OK | wx.ICON_ERROR, self
-			)
-			return
-		self.ListProfileList.SetItemText(index, name)
-		self.ListProfileList.SetFocus()
-		self.profiles[name] = self.profiles[oldName]
-		del self.profiles[oldName]
+        oldName = self.ListProfileList.GetItemText(index)
         
+        name = wx.GetTextFromUser(
+            # Translators: The label of a field to enter a new name for a profile.
+            _("New name"),
+            # Translators: The title of the dialog to rename a profile.
+            _("Rename"), oldName
+        )
+        # When escape is pressed, an empty string is returned.
+        if name in ("", oldName):
+            return
+        if name in self.profiles:
+            gui.messageBox(
+                # Translators: An error displayed when renaming a profile
+                # with the new name already exists.
+                _("Another profile has the same name as the entered name. Please choose a different name."),
+                _("Error"), wx.OK | wx.ICON_ERROR, self
+            )
+            return
+
+        
+        self.ListProfileList.SetItemText(index, name)
+        self.ListProfileList.SetFocus()
+        self.profiles[name] = self.profiles[oldName]
+        del self.profiles[oldName]
+
+        if oldName == self.activeprof :
+            self.profiles["activProf"] = name
+            self.activeprof = name
+
     def onNew(self,event):
         name = wx.GetTextFromUser(
-			# Translators: The label of a field to enter a new name for a mouse position/tag.
-			_("Profile name"),
+            # Translators: The label of a field to enter a new name for a mouse position/tag.
+            _("Profile name"),
             # Translators: The title of the dialog to rename a mouse position.
             _("New profile")
-		)
-		# When escape is pressed, an empty string is returned.
-		if name in (""):
-			return
-		if name in self.positions:
-			gui.messageBox(
-				# Translators: An error displayed when renaming a mouse position
-				# and a tag with the new name already exists.
-				_("Another profile has the same name as the entered name. Please choose a different name."),
-				_("Error"), wx.OK | wx.ICON_ERROR, self
-			)
-			return
+        )
+        # When escape is pressed, an empty string is returned.
+        if name in (""):
+            return
+        if name in self.profiles or name == "activProf":
+            gui.messageBox(
+                # Translators: An error displayed when renaming a mouse position
+                # and a tag with the new name already exists.
+                _("Please choose a different name."),
+                _("Error"), wx.OK | wx.ICON_ERROR, self
+            )
+            return
         self.ListProfileList.InsertItem(self.ListProfileList.GetItemCount(),name)
         self.profiles[name]=""
-        
         if(self.ListProfileList.GetItemCount()==1):
             self.ListProfileList.Select(0, on=1)
             self.ListProfileList.SetItemState(0, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
+            self.profiles["activProf"]=name
+            
         self.ListProfileList.SetFocus()
 
     def onDelete(self,event):
@@ -225,70 +246,96 @@ class ProfileList(wx.Dialog):
         entry = self.ListProfileList.GetFirstSelected()
         name = self.ListProfileList.GetItemText(entry)
         message = _(
-				# Translators: The confirmation prompt displayed when the user requests to delete the selected tag.
-				"Are you sure you want to delete the position named {name}? This cannot be undone."
-			).format(name=name)
+                # Translators: The confirmation prompt displayed when the user requests to delete the selected tag.
+                "Are you sure you want to delete the position named {name}? This cannot be undone."
+            ).format(name=name)
         # Translators: The title of the confirmation dialog for deletion of selected position.
-		title = _("Delete position")
+        title = _("Delete position")
         if gui.messageBox(
-			message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
-		) == wx.NO:
-			return
+            message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
+        ) == wx.NO:
+            return
 		
-		del self.profiles[name]
-		self.ListProfileList.DeleteItem(entry)
-		if self.ListProfileList.GetItemCount() > 0:
-			self.ListProfileList.Select(0, on=1)
+        delActive = False
+        log.warning("trying to detect if we deleted the active profile")
+        if name == self.activeprof :
+            delActive = True
+            log.warning("we deleted the active profile")
+            
+        del self.profiles[name]
+        self.ListProfileList.DeleteItem(entry)
+
+        if self.ListProfileList.GetItemCount() > 0:
+            self.ListProfileList.Select(0, on=1)    
+            if delActive:
+                entry = self.ListProfileList.GetFirstSelected()
+                name = self.ListProfileList.GetItemText(entry)
+                self.profiles["activProf"] = name
+                self.activeprof = name
+        else: 
+            self.activeprof = None
+            del self.profiles["activProf"]
         self.ListProfileList.SetFocus()
 
-	def onActivate(self, event):
-        return
-
-
+        
+    def onActivate(self, event):
+        if self.ListProfileList.GetItemCount() == 0:
+            return;
+        message, title = "", ""
+        entry = self.ListProfileList.GetFirstSelected()
+        name = self.ListProfileList.GetItemText(entry)
+        message = _(
+                # Translators: The confirmation prompt displayed when the user requests to delete the selected tag.
+                "Do you want to activate the profile named {name}?"
+            ).format(name=name)
+        # Translators: The title of the confirmation dialog for deletion of selected position.
+        title = _("Activate profile")
+        if gui.messageBox(
+            message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
+        ) == wx.NO:
+            return
+        self.profiles["activProf"] = name
+        self.activeprof = name
+        
     def onDefine(self,event):
         return
 
-	def onClose(self, evt):
-		self.Destroy()
-		if len(self.positions):
-			self.positions.write()
+    def onClose(self, evt):
+        self.Destroy()
+        if len(self.profiles):
+            self.profiles.write()
         else:
             os.remove(self.profiles.filename)
-		self.positions = None
-
-
+        self.profiles = None
+        
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
-	scriptCategory = _("Golden Cursor")
+    scriptCategory = _("Golden Shortcut")
 
-	def __init__(self, *args, **kwargs):
-		super(GlobalPlugin, self).__init__(*args, **kwargs)
-		self.getAppRestriction = None
-		self.restriction = False
-		self.mouseArrows = False
+    def __init__(self, *args, **kwargs):
+        super(GlobalPlugin, self).__init__(*args, **kwargs)
+        self.getAppRestriction = None
+        self.restriction = False
+        self.mouseArrows = False
 #		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(GoldenCursorSettings)
 #
 #	def terminate(self):
 #		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(GoldenCursorSettings)
 
-	@scriptHandler.script(
-		# Translators: input help message for a Golden Cursor command.
-		description=_("Opens a dialog listing profiles for the current application"),
-		gesture="kb:nvda+control+p"
-	)
-	def script_ProfileList(self, gesture):
-		appName = api.getForegroundObject().appModule.appName
-#		if not os.path.exists(os.path.join(GCMousePositions, f"{appName}.gc")):
-#			# Translators: message presented when no mouse positions are available for the focused app.
-#			ui.message(_("No mouse positions for %s.") % appName)
-#		else:
-		try:
-			d = ProfileList(parent=gui.mainFrame, appName=appName)
-			gui.mainFrame.prePopup()
-			d.Raise()
-			d.Show()
-			gui.mainFrame.postPopup()
-		except RuntimeError:
-			pass
+    @scriptHandler.script(
+        # Translators: input help message for a Golden Cursor command.
+        description=_("Opens a dialog listing profiles for the current application"),
+        gesture="kb:nvda+control+l"
+    )
+    def script_ProfileList(self, gesture):
+        appName = api.getForegroundObject().appModule.appName
+        try:
+            d = ProfileList(parent=gui.mainFrame, appName=appName)
+            gui.mainFrame.prePopup()
+            d.Raise()
+            d.Show()
+            gui.mainFrame.postPopup()
+        except RuntimeError:
+            pass
 
 	#@scriptHandler.script(
 	#	# Translators: Input help message for a Golden Cursor command.
