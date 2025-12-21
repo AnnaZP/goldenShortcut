@@ -62,10 +62,31 @@ class EnterName(wx.TextEntryDialog):
         super(EnterName, self).__init__(*args, **kwargs)
 
 class AccordInputDialog(wx.Dialog):
-    def __init__(self, parent, title):
+    def __init__(self, parent, title,inputString):
         super(AccordInputDialog,self).__init__( parent, title=title )
         
-        self.accordString = "accord string"
+        self.accords = {
+            "EAB left" : "",
+            "EAB right" : "",
+            "EAB up" : "",
+            "EAB down" : "",
+            "Routing+EAB left" : "",
+            "Routing+EAB right" : "",
+            "Routing+EAB up" : "",
+            "Routing+EAB down" : "",
+        }
+        
+        inputList=inputString.split(",")
+        
+        self.accords["EAB left"]=inputList[0]
+        self.accords["EAB right"]=inputList[1]
+        self.accords["EAB up"]=inputList[2]
+        self.accords["EAB down"]=inputList[3]
+        self.accords["Routing+EAB left"]=inputList[4]
+        self.accords["Routing+EAB right"]=inputList[5]
+        self.accords["Routing+EAB up"]=inputList[6]
+        self.accords["Routing+EAB down"]=inputList[7]
+        
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         sHelper = gui.guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
         # Translators: The label for the list view of the profiles in the current application.
@@ -79,16 +100,7 @@ class AccordInputDialog(wx.Dialog):
         self.ListAccordList.InsertColumn(1, _("Shortcut"), width=350)
         self.ListAccordList.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onGetShortcut)            
         
-        self.accords = {
-            "EAB left" : "",
-            "EAB right" : "",
-            "EAB up" : "",
-            "EAB down" : "",
-            "Routing+EAB left" : "",
-            "Routing+EAB right" : "",
-            "Routing+EAB up" : "",
-            "Routing+EAB down" : "",
-        }
+        
         for entry in self.accords.keys():
             self.ListAccordList.Append((entry,self.accords[entry]))
             
@@ -108,7 +120,15 @@ class AccordInputDialog(wx.Dialog):
         self.CenterOnScreen()
 
     def getValue(self):
-        return self.accords["EAB left"]+","+self.accords["EAB right"]+","+self.accords["EAB up"]
+        return ",".join([
+            self.accords["EAB left"],
+            self.accords["EAB right"],
+            self.accords["EAB up"],
+            self.accords["EAB down"],
+            self.accords["Routing+EAB left"],
+            self.accords["Routing+EAB right"],
+            self.accords["Routing+EAB up"],
+            self.accords["Routing+EAB down"],])
         
     def onGetShortcut(self,event):
         t = threading.Timer(0.5, ui.message, [_("Enter input gesture:")])
@@ -128,9 +148,10 @@ class AccordInputDialog(wx.Dialog):
         name = self.ListAccordList.GetItemText(index)
         shortCut = str.split(":")[1]
         shortCut = shortCut.replace("control","CONTROL")
-        if shortCut in [
+        # we wanna explicitely forbid using , in the shortcut
+        if "," in shortCut or shortCut in [
             "tab", "shift+tab", "upArrow", "downArrow", "leftArrow", "rightArrow", "home", "end", "escape",
-            "pageUp", "pageDown", ",", "numpadEnter", "space", "enter"]:
+            "pageUp", "pageDown", "numpadEnter", "space", "enter"]:
             gui.messageBox(
                 # Translators: Message displayde if shortCut is not valid.
                 _("This shortCut is not valid, choose another one please"),
@@ -313,7 +334,8 @@ class ProfileList(wx.Dialog):
             )
             return
         self.ListProfileList.InsertItem(self.ListProfileList.GetItemCount(),name)
-        self.profiles[name]=""
+        #we want to split this string by , to get eight empty strings
+        self.profiles[name]=",,,,,,,"
         if(self.ListProfileList.GetItemCount()==1):
             self.ListProfileList.Select(0, on=1)
             self.ListProfileList.SetItemState(0, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
@@ -382,20 +404,20 @@ class ProfileList(wx.Dialog):
     def onDefine(self,event):
         if self.ListProfileList.GetItemCount() == 0:
             gui.messageBox(
-                # Translators: An error displayed when renaming a mouse position
-                # and a tag with the new name already exists.
+                # Translators: An error trying to define a profile when there isnt any
                 _("Please define some profiles."),
                 _("Error"), wx.OK | wx.ICON_ERROR, self
             )
             return
         entry = self.ListProfileList.GetFirstSelected()
         profileName = self.ListProfileList.GetItemText(entry)
-        getAccords=AccordInputDialog(parent=self,title=f"Defining profile {profileName} for {self.appName}")
+        getAccords=AccordInputDialog(parent=self,title=f"Defining profile {profileName} for {self.appName}",
+            inputString=self.profiles[profileName])
         result=getAccords.ShowModal()
         if result==wx.ID_OK:
-            text=getAccords.getValue()
-            
-            log.warning(text)
+            accordStr=getAccords.getValue()
+            self.profiles[profileName]=accordStr
+            log.warning(accordStr)
 
     def onClose(self, evt):
         self.Destroy()
