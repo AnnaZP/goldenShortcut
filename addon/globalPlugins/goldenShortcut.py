@@ -89,7 +89,7 @@ class AccordInputDialog(wx.Dialog):
         
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         sHelper = gui.guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
-        # Translators: The label for the list view of the profiles in the current application.
+        # Translators: The label for the list view of the accords for the current profile.
         accordsText = _("&Shorcut list")
         self.ListAccordList = sHelper.addLabeledControl(
             accordsText, wx.ListCtrl, style=wx.LC_REPORT | wx.LC_SINGLE_SEL, size=(600, 350)
@@ -112,12 +112,29 @@ class AccordInputDialog(wx.Dialog):
         # To allow the dialog to be closed with the escape key.
 
         mainSizer.Add(sHelper.sizer, border=gui.guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
-        btnSizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
-        mainSizer.Add(btnSizer, flag=wx.EXPAND | wx.ALL, border=10)
+        
+        #btnSizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        #mainSizer.Add(btnSizer, flag=wx.EXPAND | wx.ALL, border=10)
+        
+        btnSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.defineButton = wx.Button(self, label=_("&Define"))
+        self.okButton = wx.Button(self, wx.ID_OK)
+        self.cancelButton = wx.Button(self, wx.ID_CANCEL)
+        btnSizer.Add(self.defineButton, flag=wx.RIGHT, border=5)
+        btnSizer.Add(self.okButton, flag=wx.RIGHT, border=5)
+        btnSizer.Add(self.cancelButton)
+
+        self.defineButton.Bind(wx.EVT_BUTTON, self.onGetShortcut)
+
+        mainSizer.Add(btnSizer, flag=wx.ALIGN_RIGHT | wx.ALL, border=10)
+        
         self.Sizer = mainSizer
         mainSizer.Fit(self)
         self.ListAccordList.SetFocus()
         self.CenterOnScreen()
+        
+
+        
 
     def getValue(self):
         return ",".join([
@@ -188,6 +205,7 @@ class ProfileList(wx.Dialog):
         ProfileList._instance = weakref.ref(self)
 
         if appName:
+            #Translators: title of the dialog window listing profiles for selected application
             super(ProfileList, self).__init__(parent, title=_("Profile selector for %s") % (appName), size=(420, 300))
             self.ListProfileList(appName=appName)
         else:
@@ -317,9 +335,9 @@ class ProfileList(wx.Dialog):
 
     def onNew(self,event):
         name = wx.GetTextFromUser(
-            # Translators: The label of a field to enter a new name for a mouse position/tag.
+            # Translators: The label of a field to enter a new name for a profile.
             _("Profile name"),
-            # Translators: The title of the dialog to rename a mouse position.
+            # Translators: The title of the dialog to rename a profile.
             _("New profile")
         )
         # When escape is pressed, an empty string is returned.
@@ -327,7 +345,7 @@ class ProfileList(wx.Dialog):
             return
         if name in self.profiles or name == "activProf":
             gui.messageBox(
-                # Translators: An error displayed when renaming a mouse position
+                # Translators: An error displayed when creating a profile
                 # and a tag with the new name already exists.
                 _("Please choose a different name."),
                 _("Error"), wx.OK | wx.ICON_ERROR, self
@@ -351,20 +369,19 @@ class ProfileList(wx.Dialog):
         name = self.ListProfileList.GetItemText(entry)
         message = _(
                 # Translators: The confirmation prompt displayed when the user requests to delete the selected tag.
-                "Are you sure you want to delete the position named {name}? This cannot be undone."
+                "Are you sure you want to delete the profile named {name}? This cannot be undone."
             ).format(name=name)
         # Translators: The title of the confirmation dialog for deletion of selected position.
-        title = _("Delete position")
+        title = _("Delete profile")
         if gui.messageBox(
             message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
         ) == wx.NO:
             return
 		
         delActive = False
-        log.warning("trying to detect if we deleted the active profile")
+
         if name == self.activeprof :
             delActive = True
-            log.warning("we deleted the active profile")
             
         del self.profiles[name]
         self.ListProfileList.DeleteItem(entry)
@@ -389,10 +406,10 @@ class ProfileList(wx.Dialog):
         entry = self.ListProfileList.GetFirstSelected()
         name = self.ListProfileList.GetItemText(entry)
         message = _(
-                # Translators: The confirmation prompt displayed when the user requests to delete the selected tag.
+                # Translators: The confirmation prompt displayed when the user requests to activate the selected profile.
                 "Do you want to activate the profile named {name}?"
             ).format(name=name)
-        # Translators: The title of the confirmation dialog for deletion of selected position.
+        # Translators: The title of the confirmation dialog for activating selected profile.
         title = _("Activate profile")
         if gui.messageBox(
             message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
@@ -405,13 +422,15 @@ class ProfileList(wx.Dialog):
         if self.ListProfileList.GetItemCount() == 0:
             gui.messageBox(
                 # Translators: An error trying to define a profile when there isnt any
-                _("Please define some profiles."),
+                _("Please create some profiles."),
                 _("Error"), wx.OK | wx.ICON_ERROR, self
             )
             return
         entry = self.ListProfileList.GetFirstSelected()
         profileName = self.ListProfileList.GetItemText(entry)
-        getAccords=AccordInputDialog(parent=self,title=f"Defining profile {profileName} for {self.appName}",
+        # Translators: the title of the profile definition dialog
+        getAccords=AccordInputDialog(parent=self,
+            title=_("Defining profile {profileName} for {aName}").format(profileName=profileName,aName=self.appName),
             inputString=self.profiles[profileName])
         result=getAccords.ShowModal()
         if result==wx.ID_OK:
@@ -441,7 +460,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 #		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(GoldenCursorSettings)
 
     @scriptHandler.script(
-        # Translators: input help message for a Golden Cursor command.
+        # Translators: input help message for a Golden Shortcut command.
         description=_("Opens a dialog listing profiles for the current application"),
         gesture="kb:nvda+control+l"
     )
