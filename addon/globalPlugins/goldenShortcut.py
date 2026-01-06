@@ -148,8 +148,9 @@ class AccordInputDialog(wx.Dialog):
             self.accords["Routing+EAB down"],])
         
     def onGetShortcut(self,event):
-        t = threading.Timer(0.5, ui.message, [_("Enter input gesture:")])
-        t.start()
+        wx.CallLater(500, ui.message, _("Enter input gesture:"))
+        #t = threading.Timer(0.5, ui.message, [_("Enter input gesture:")])
+        #t.start()
         inputCore.manager._captureFunc = self.addGestureCaptor
         
     def addGestureCaptor(self, gesture: inputCore.InputGesture):
@@ -166,9 +167,9 @@ class AccordInputDialog(wx.Dialog):
         shortCut = str.split(":")[1]
         shortCut = shortCut.replace("control","CONTROL")
         # we wanna explicitely forbid using , in the shortcut
-        if "," in shortCut or shortCut in [
-            "tab", "shift+tab", "upArrow", "downArrow", "leftArrow", "rightArrow", "home", "end", "escape",
-            "pageUp", "pageDown", "numpadEnter", "space", "enter"]:
+        if "," in shortCut: #or shortCut in [
+#            "tab", "shift+tab", "upArrow", "downArrow", "leftArrow", "rightArrow", "home", "end", "escape",
+#            "pageUp", "pageDown", "numpadEnter", "space", "enter"]:
             gui.messageBox(
                 # Translators: Message displayde if shortCut is not valid.
                 _("This shortCut is not valid, choose another one please"),
@@ -196,7 +197,7 @@ class ProfileList(wx.Dialog):
             return super(cls, cls).__new__(cls, parent, *args, **kwargs)
         return inst
 
-    def __init__(self, parent, appName=None):
+    def __init__(self, parent, appModule, appName=None):
         inst = ProfileList._instance() if ProfileList._instance else None
         if inst:
             return
@@ -207,6 +208,9 @@ class ProfileList(wx.Dialog):
         if appName:
             #Translators: title of the dialog window listing profiles for selected application
             super(ProfileList, self).__init__(parent, title=_("Profile selector for %s") % (appName), size=(420, 300))
+            self.appModule = appModule
+            self.profileDefinitionDialog = None
+            self.otherDialog = None
             self.ListProfileList(appName=appName)
         else:
             #TU JAKIS KoMUNIKAT BLEDU
@@ -304,13 +308,25 @@ class ProfileList(wx.Dialog):
             return;
         index = self.ListProfileList.GetFirstSelected()
         oldName = self.ListProfileList.GetItemText(index)
-        
-        name = wx.GetTextFromUser(
-            # Translators: The label of a field to enter a new name for a profile.
-            _("New name"),
-            # Translators: The title of the dialog to rename a profile.
-            _("Rename"), oldName
+        self.otherDialog = wx.TextEntryDialog(
+            parent = self,
+            message = _("New name"),
+            caption = _("Rename"),
+            value= oldName
         )
+        
+        name=""
+        if self.otherDialog.ShowModal() == wx.ID_OK:
+            name = self.otherDialog.GetValue()
+            
+        self.otherDialog.Destroy()
+        self.otherDialog = None
+#        name = wx.GetTextFromUser(
+#            # Translators: The label of a field to enter a new name for a profile.
+#            _("New name"),
+#            # Translators: The title of the dialog to rename a profile.
+#            _("Rename"), oldName
+#        )
         # When escape is pressed, an empty string is returned.
         if name in ("", oldName):
             return
@@ -334,12 +350,26 @@ class ProfileList(wx.Dialog):
             self.activeprof = name
 
     def onNew(self,event):
-        name = wx.GetTextFromUser(
-            # Translators: The label of a field to enter a new name for a profile.
-            _("Profile name"),
-            # Translators: The title of the dialog to rename a profile.
-            _("New profile")
+        
+#        name = wx.GetTextFromUser(
+#            # Translators: The label of a field to enter a new name for a profile.
+#            _("Profile name"),
+#            # Translators: The title of the dialog to rename a profile.
+#            _("New profile")
+#        )
+        self.otherDialog = wx.TextEntryDialog(
+            parent = self,
+            message = _("Profile name"),
+            caption = _("New profile"),
+            value=""
         )
+        
+        name=""
+        if self.otherDialog.ShowModal() == wx.ID_OK:
+            name = self.otherDialog.GetValue()
+            
+        self.otherDialog.Destroy()
+        self.otherDialog = None        
         # When escape is pressed, an empty string is returned.
         if name in (""):
             return
@@ -353,7 +383,7 @@ class ProfileList(wx.Dialog):
             return
         self.ListProfileList.InsertItem(self.ListProfileList.GetItemCount(),name)
         #we want to split this string by , to get eight empty strings
-        self.profiles[name]=",,,,,,,"
+        self.profiles[name]="leftArrow,rightArrow,upArrow,downArrow,shift+tab,tab,alt,enter"
         if(self.ListProfileList.GetItemCount()==1):
             self.ListProfileList.Select(0, on=1)
             self.ListProfileList.SetItemState(0, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
@@ -402,19 +432,19 @@ class ProfileList(wx.Dialog):
     def onActivate(self, event):
         if self.ListProfileList.GetItemCount() == 0:
             return;
-        message, title = "", ""
+        #message, title = "", ""
         entry = self.ListProfileList.GetFirstSelected()
         name = self.ListProfileList.GetItemText(entry)
-        message = _(
-                # Translators: The confirmation prompt displayed when the user requests to activate the selected profile.
-                "Do you want to activate the profile named {name}?"
-            ).format(name=name)
+        #message = _(
+        #        # Translators: The confirmation prompt displayed when the user requests to activate the selected profile.
+        #        "Do you want to activate the profile named {name}?"
+        #    ).format(name=name)
         # Translators: The title of the confirmation dialog for activating selected profile.
-        title = _("Activate profile")
-        if gui.messageBox(
-            message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
-        ) == wx.NO:
-            return
+        #title = _("Activate profile")
+        #if gui.messageBox(
+        #    message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self
+        #) == wx.NO:
+        #    return
         self.profiles["activProf"] = name
         self.activeprof = name
         
@@ -429,16 +459,18 @@ class ProfileList(wx.Dialog):
         entry = self.ListProfileList.GetFirstSelected()
         profileName = self.ListProfileList.GetItemText(entry)
         # Translators: the title of the profile definition dialog
-        getAccords=AccordInputDialog(parent=self,
+        self.profileDefinitionDialog=AccordInputDialog(parent=self,
             title=_("Defining profile {profileName} for {aName}").format(profileName=profileName,aName=self.appName),
             inputString=self.profiles[profileName])
-        result=getAccords.ShowModal()
+        result=self.profileDefinitionDialog.ShowModal()
         if result==wx.ID_OK:
-            accordStr=getAccords.getValue()
+            accordStr=self.profileDefinitionDialog.getValue()
             self.profiles[profileName]=accordStr
-            log.warning(accordStr)
+            #log.warning(accordStr)
 
     def onClose(self, evt):
+        self.profileDefinitionDialog = None
+        self.appModule.mainDialog = None
         self.Destroy()
         if len(self.profiles):
             self.profiles.write()
@@ -454,23 +486,98 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self.getAppRestriction = None
         self.restriction = False
         self.mouseArrows = False
+        self.mainDialog = None
 #		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(GoldenCursorSettings)
 #
 #	def terminate(self):
 #		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(GoldenCursorSettings)
 
+    def event_gainFocus(self, obj, nextHandler):
+        if self.isInMyDialog(obj):
+            ui.message("Focus moved withing our dialog.")
+            self.mapDefaultGestures()
+        else:
+            self.mapBrGestures()
+        nextHandler()
+        
+    def mapDefaultGestures(self):
+        self.gestures = {
+            "br(papenmeier):left": "kb:leftarrow",
+            "br(papenmeier):right": "kb:rightarrow",
+            "br(papenmeier):up": "kb:uparrow",
+            "br(papenmeier):dn": "kb:downarrow",
+            "br(papenmeier):left2": "kb:shift+tab",
+            "br(papenmeier):right2": "kb:tab",
+            "br(papenmeier):up2": "kb:alt",
+            "br(papenmeier):dn2": "kb:enter",
+        }
+        for src, dst in self.gestures.items():
+            log.warning("INSTALLING %s -> %s" % (src, dst))
+            inputCore.manager.userGestureMap.add(
+                src, "globalCommands", "GlobalCommands", dst, True)
+        
+    def mapBrGestures(self):
+        appName = api.getFocusObject().appModule.appName
+        ui.message(f"Focus moved within {appName}")
+        if os.path.exists(GSProfiles):
+            lprofiles = ConfigObj(os.path.join(GSProfiles, f"{appName}.gs"), encoding="UTF-8")
+            lactiveprof = None
+            if len(lprofiles) :
+                for entry in lprofiles.keys():
+                    if entry == "activProf" :
+                        lactiveprof = lprofiles[entry]
+                log.warning(lactiveprof)
+                log.warning(lprofiles[lactiveprof])
+                
+                inputString = lprofiles[lactiveprof]
+                inputList=inputString.split(",")
+                
+                accords = {
+                    "br(papenmeier):left" : "kb:"+inputList[0],
+                    "br(papenmeier):right" : "kb:"+inputList[1],
+                    "br(papenmeier):up" : "kb:"+inputList[2],
+                    "br(papenmeier):dn" : "kb:"+inputList[3],
+                    "br(papenmeier):left2" : "kb:"+inputList[4],
+                    "br(papenmeier):right2" : "kb:"+inputList[5],
+                    "br(papenmeier):up2" : "kb:"+inputList[6],
+                    "br(papenmeier):dn2" : "kb:"+inputList[7],
+                }
+                for src, dst in accords.items():
+                    log.warning("INSTALLING %s -> %s" % (src, dst))
+                    inputCore.manager.userGestureMap.add(
+                        src, "globalCommands", "GlobalCommands", dst, True)
+
+
+    def isInMyDialog(self, obj):
+        if self.mainDialog:
+            while obj:
+                #log.warning("object exists")
+                if getattr(obj, "windowHandle", None) == self.mainDialog.GetHandle():
+                    return True
+                if self.mainDialog.profileDefinitionDialog:
+                    if getattr(obj, "windowHandle", None) == self.mainDialog.profileDefinitionDialog.GetHandle():
+                        return True
+                if self.mainDialog.otherDialog:
+                    if getattr(obj, "windowHandle", None) == self.mainDialog.otherDialog.GetHandle():
+                        return True
+                    
+                obj = obj.parent
+                
+            #log.warning("object stopped existing")
+        return False
+
     @scriptHandler.script(
         # Translators: input help message for a Golden Shortcut command.
         description=_("Opens a dialog listing profiles for the current application"),
-        gesture="kb:nvda+control+l"
+        gesture="kb:nvda+control+e"
     )
     def script_ProfileList(self, gesture):
         appName = api.getForegroundObject().appModule.appName
         try:
-            d = ProfileList(parent=gui.mainFrame, appName=appName)
+            self.mainDialog = ProfileList(parent=gui.mainFrame, appModule=self, appName=appName)
             gui.mainFrame.prePopup()
-            d.Raise()
-            d.Show()
+            self.mainDialog.Raise()
+            self.mainDialog.Show()
             gui.mainFrame.postPopup()
         except RuntimeError:
             pass
