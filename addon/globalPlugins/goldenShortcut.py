@@ -94,7 +94,7 @@ class AccordInputDialog(wx.Dialog):
         self.ListAccordList = sHelper.addLabeledControl(
             accordsText, wx.ListCtrl, style=wx.LC_REPORT | wx.LC_SINGLE_SEL, size=(600, 350)
         )
-        
+        self.ListAccordList.Bind(wx.EVT_KEY_DOWN, self.onListKeyDown)
         
         self.ListAccordList.InsertColumn(0, _("Accord"), width=250)
         self.ListAccordList.InsertColumn(1, _("Shortcut"), width=350)
@@ -133,7 +133,47 @@ class AccordInputDialog(wx.Dialog):
         self.ListAccordList.SetFocus()
         self.CenterOnScreen()
         
+    def onListKeyDown(self,event):
+        key = event.GetKeyCode()
+        lc = self.ListAccordList
+        count = lc.GetItemCount()
+        selected = lc.GetFirstSelected()
+        
+        if count == 0:
+            event.Skip()
+            return
+        
+        if key == wx.WXK_LEFT:
+            nextIndex = (selected-1) % count
+            lc.Select(selected,False)
+            lc.Select(nextIndex)
+            lc.Focus(nextIndex)
+            return
+        
+        if key == wx.WXK_RIGHT:
+            nextIndex = (selected+1) % count
+            lc.Select(selected, False)
+            lc.Select(nextIndex)
+            lc.Focus(nextIndex)
+            return
 
+        if key == wx.WXK_DOWN:
+            if selected == count -1:
+                lc.Select(selected,False)
+                lc.Select(0)
+                lc.Focus(0)
+                return
+                
+        if key == wx.WXK_UP:
+            if selected == 0:
+                lc.Select(0,False)
+                lc.Select(count-1)
+                lc.Focus(count-1)
+                return
+                
+
+                
+        event.Skip()
         
 
     def getValue(self):
@@ -221,6 +261,48 @@ class ProfileList(wx.Dialog):
                 wx.OK | wx.ICON_ERROR, 
                 self
             )
+            
+    def onListKeyDown(self,event):
+        key = event.GetKeyCode()
+        lc = self.ListProfileList
+        count = lc.GetItemCount()
+        selected = lc.GetFirstSelected()
+        
+        if count == 0:
+            event.Skip()
+            return
+        
+        if key == wx.WXK_LEFT:
+            nextIndex = (selected-1) % count
+            lc.Select(selected,False)
+            lc.Select(nextIndex)
+            lc.Focus(nextIndex)
+            return
+        
+        if key == wx.WXK_RIGHT:
+            nextIndex = (selected+1) % count
+            lc.Select(selected, False)
+            lc.Select(nextIndex)
+            lc.Focus(nextIndex)
+            return
+
+        if key == wx.WXK_DOWN:
+            if selected == count -1:
+                lc.Select(selected,False)
+                lc.Select(0)
+                lc.Focus(0)
+                return
+                
+        if key == wx.WXK_UP:
+            if selected == 0:
+                lc.Select(0,False)
+                lc.Select(count-1)
+                lc.Focus(count-1)
+                return
+                
+
+                
+        event.Skip()
 
     def ListProfileList(self, appName):
         self.appName = appName
@@ -241,6 +323,8 @@ class ProfileList(wx.Dialog):
         self.ListProfileList = sHelper.addLabeledControl(
             profilesText, wx.ListCtrl, style=wx.LC_REPORT | wx.LC_SINGLE_SEL, size=(550, 350)
         )
+        
+        self.ListProfileList.Bind(wx.EVT_KEY_DOWN, self.onListKeyDown)
         self.listItems()
 		
         bHelper = gui.guiHelper.ButtonHelper(orientation=wx.HORIZONTAL)
@@ -291,7 +375,7 @@ class ProfileList(wx.Dialog):
     def listItems(self):
         # Translators: the column in profile list to identify the profile name.
         self.ListProfileList.InsertColumn(0, _("Name"), width=150)
-        self.ListProfileList.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onDefine)
+        self.ListProfileList.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onActivate)
 		
         if len(self.profiles):
             item_count=-1
@@ -383,7 +467,7 @@ class ProfileList(wx.Dialog):
             return
         self.ListProfileList.InsertItem(self.ListProfileList.GetItemCount(),name)
         #we want to split this string by , to get eight empty strings
-        self.profiles[name]="leftArrow,rightArrow,upArrow,downArrow,shift+tab,tab,alt,enter"
+        self.profiles[name]="leftArrow,rightArrow,upArrow,downArrow,shift+tab,tab,escape,enter"
         if(self.ListProfileList.GetItemCount()==1):
             self.ListProfileList.Select(0, on=1)
             self.ListProfileList.SetItemState(0, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
@@ -447,6 +531,7 @@ class ProfileList(wx.Dialog):
         #    return
         self.profiles["activProf"] = name
         self.activeprof = name
+        self.onClose(event)
         
     def onDefine(self,event):
         if self.ListProfileList.GetItemCount() == 0:
@@ -487,20 +572,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self.restriction = False
         self.mouseArrows = False
         self.mainDialog = None
-#		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(GoldenCursorSettings)
-#
-#	def terminate(self):
-#		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(GoldenCursorSettings)
-
-    def event_gainFocus(self, obj, nextHandler):
-        if self.isInMyDialog(obj):
-            ui.message("Focus moved withing our dialog.")
-            self.mapDefaultGestures()
-        else:
-            self.mapBrGestures()
-        nextHandler()
-        
-    def mapDefaultGestures(self):
         self.gestures = {
             "br(papenmeier):left": "kb:leftarrow",
             "br(papenmeier):right": "kb:rightarrow",
@@ -508,26 +579,40 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             "br(papenmeier):dn": "kb:downarrow",
             "br(papenmeier):left2": "kb:shift+tab",
             "br(papenmeier):right2": "kb:tab",
-            "br(papenmeier):up2": "kb:alt",
+            "br(papenmeier):up2": "kb:escape",
             "br(papenmeier):dn2": "kb:enter",
         }
+#		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(GoldenCursorSettings)
+#
+#	def terminate(self):
+#		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(GoldenCursorSettings)
+
+    def event_gainFocus(self, obj, nextHandler):
+        if self.isInMyDialog(obj):
+            #ui.message("Focus moved withing our dialog.")
+            self.mapDefaultGestures()
+        else:
+            self.mapBrGestures()
+        nextHandler()
+        
+    def mapDefaultGestures(self):
         for src, dst in self.gestures.items():
-            log.warning("INSTALLING %s -> %s" % (src, dst))
+            #log.warning("INSTALLING %s -> %s" % (src, dst))
             inputCore.manager.userGestureMap.add(
                 src, "globalCommands", "GlobalCommands", dst, True)
         
     def mapBrGestures(self):
         appName = api.getFocusObject().appModule.appName
-        ui.message(f"Focus moved within {appName}")
-        if os.path.exists(GSProfiles):
+        #ui.message(f"Focus moved within {appName}")
+        if os.path.exists(os.path.join(GSProfiles, f"{appName}.gs")):
             lprofiles = ConfigObj(os.path.join(GSProfiles, f"{appName}.gs"), encoding="UTF-8")
             lactiveprof = None
             if len(lprofiles) :
                 for entry in lprofiles.keys():
                     if entry == "activProf" :
                         lactiveprof = lprofiles[entry]
-                log.warning(lactiveprof)
-                log.warning(lprofiles[lactiveprof])
+                #log.warning(lactiveprof)
+                #log.warning(lprofiles[lactiveprof])
                 
                 inputString = lprofiles[lactiveprof]
                 inputList=inputString.split(",")
@@ -543,9 +628,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                     "br(papenmeier):dn2" : "kb:"+inputList[7],
                 }
                 for src, dst in accords.items():
-                    log.warning("INSTALLING %s -> %s" % (src, dst))
+                    #log.warning("INSTALLING %s -> %s" % (src, dst))
                     inputCore.manager.userGestureMap.add(
                         src, "globalCommands", "GlobalCommands", dst, True)
+        else: 
+            self.mapDefaultGestures()
 
 
     def isInMyDialog(self, obj):
@@ -581,6 +668,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             gui.mainFrame.postPopup()
         except RuntimeError:
             pass
+            
+    __gestures = {
+        "br(papenmeier):r1" : "ProfileList",
+    }
 
 	#@scriptHandler.script(
 	#	# Translators: Input help message for a Golden Cursor command.
