@@ -8,6 +8,7 @@
 
 # Define context sensitive keyboard shortcuts for Papenmeier braille terminals  
 
+import globalCommands
 import threading
 import os
 from configobj import ConfigObj
@@ -466,8 +467,11 @@ class ProfileList(wx.Dialog):
             )
             return
         self.ListProfileList.InsertItem(self.ListProfileList.GetItemCount(),name)
-        #we want to split this string by , to get eight empty strings
-        self.profiles[name]="leftArrow,rightArrow,upArrow,downArrow,shift+tab,tab,escape,enter"
+        
+        # this are the shortcuts mapped to default papenmeier NVDA actions
+        # the routing keyboard shortcuts are already in NVDA
+        # for the EAB left/right/up/down we need to extra code the assignment of the action to the keyboard shortcut
+        self.profiles[name]="alt+CONTROL+shift+leftArrow,alt+CONTROL+shift+rightArrow,alt+CONTROL+shift+upArrow,alt+CONTROL+shift+downArrow,NVDA+numpad4,NVDA+numpad6,NVDA+numpad8,NVDA+numpad2"
         if(self.ListProfileList.GetItemCount()==1):
             self.ListProfileList.Select(0, on=1)
             self.ListProfileList.SetItemState(0, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
@@ -582,6 +586,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             "br(papenmeier):up2": "kb:escape",
             "br(papenmeier):dn2": "kb:enter",
         }
+
+        self.defaultNVDAGestures = {
+            "br(papenmeier):left": "kb:alt+CONTROL+shift+leftArrow",
+            "br(papenmeier):right": "kb:alt+CONTROL+shift+rightArrow",
+            "br(papenmeier):up": "kb:alt+CONTROL+shift+upArrow",
+            "br(papenmeier):dn": "kb:alt+CONTROL+shift+downArrow",
+            "br(papenmeier):left2": "kb:NVDA+numpad4",
+            "br(papenmeier):right2": "NVDA+numpad6",
+            "br(papenmeier):up2": "kb:NVDA+numpad8",
+            "br(papenmeier):dn2": "kb:NVDA+numpad2",
+        }
+        
 #		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(GoldenCursorSettings)
 #
 #	def terminate(self):
@@ -597,6 +613,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         
     def mapDefaultGestures(self):
         for src, dst in self.gestures.items():
+            #log.warning("INSTALLING %s -> %s" % (src, dst))
+            inputCore.manager.userGestureMap.add(
+                src, "globalCommands", "GlobalCommands", dst, True)
+                
+    def mapDefaultNVDAGestures(self):
+        for src, dst in self.defaultNVDAgestures.items():
             #log.warning("INSTALLING %s -> %s" % (src, dst))
             inputCore.manager.userGestureMap.add(
                 src, "globalCommands", "GlobalCommands", dst, True)
@@ -632,7 +654,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                     inputCore.manager.userGestureMap.add(
                         src, "globalCommands", "GlobalCommands", dst, True)
         else: 
-            self.mapDefaultGestures()
+            self.mapDefaultNVDAGestures()
 
 
     def isInMyDialog(self, obj):
@@ -671,203 +693,60 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             
     __gestures = {
         "br(papenmeier):r1" : "ProfileList",
+        "br(papenmeier):l2" : "displayNVDABrailleSettings",
+        "kb:alt+CONTROL+shift+upArrow": "brailleLineUp",
+        "kb:alt+CONTROL+shift+downArrow": "brailleLineDown",
+        "kb:alt+CONTROL+shift+leftArrow": "brailleLineLeft",
+        "kb:alt+CONTROL+shift+rightArrow": "brailleLineRight",
     }
+    
+    @scriptHandler.script(
+        description=_("Moves the braille display to the previous line"),
+        category=_("Braille"),
+    )
+    
+    def script_brailleLineUp(self,gesture):
+        gc = globalCommands.commands
+        gc.script_braille_previousLine(gesture)
+        
+    @scriptHandler.script(
+        description=_("Moves the braille display to the next line"),
+        category=_("Braille"),
+    )
+    
+    def script_brailleLineDown(self,gesture):
+        gc = globalCommands.commands
+        gc.script_braille_nextLine(gesture)
+        
+    @scriptHandler.script(
+        description=_("Scrolls the braille display back"),
+        category=_("Braille"),
+    )
+    
+    def script_brailleLineLeft(self,gesture):
+        gc = globalCommands.commands
+        gc.script_braille_scrollBack(gesture)
+        
+    @scriptHandler.script(
+        description=_("Scrolls the braille display forward"),
+        category=_("Braille"),
+    )
+    
+    def script_brailleLineRight(self,gesture):
+        gc = globalCommands.commands
+        gc.script_braille_scrollForward(gesture)
+        
+    @scriptHandler.script(
+        description = _("Shows NVDA's braille settings"),
+        category = _("Configuration"),
+        gesture = "kb:alt+control+shift+b"
+    )
+    
+    def script_displayNVDABrailleSettings(self,gesture):
+        gc = globalCommands.commands
+        gc.script_activateBrailleSettingsDialog(gesture)
 
-	#@scriptHandler.script(
-	#	# Translators: Input help message for a Golden Cursor command.
-	#	description=_("Opens a dialog to label the current mouse position and saves it"),
-	#	gesture="kb:nvda+shift+l"
-	#)
-    #
-	#def script_saveMousePosition(self, gesture):
-	#	x, y = winUser.getCursorPos()
-	#	# Stringify coordinates early.
-	#	x, y = str(x), str(y)
-	#	d = EnterPositionName(
-	#		# Translators: edit field label for new mouse position.
-	#		gui.mainFrame, _("Enter the name for the current mouse position (x: {positionX}, Y: {positionY}").format(
-	#			positionX=x, positionY=y
-	#		),
-	#		# Translators: title for save mouse position dialog.
-	#		_("Save mouse position")
-	#	)
-#
-	#	def callback(result):
-	#		if result == wx.ID_OK:
-	#			name = d.GetValue().rstrip()
-	#			if name == "":
-	#				return
-	#			appName = self.getMouse().appModule.appName
-	#			# If the files path does not exist, create it now.
-	#			if not os.path.exists(GCMousePositions):
-	#				os.mkdir(GCMousePositions)
-	#			position = ConfigObj(os.path.join(GCMousePositions, f"{appName}.gc"), encoding="UTF-8")
-	#			position[name] = ",".join([x, y])
-	#			position.write()
-	#			# Translators: presented when position (tag) has been saved.
-	#			ui.message(_("Position saved in %s.") % position.filename)
-	#	gui.runScriptModalDialog(d, callback)
-#
-#	@scriptHandler.script(
-#		# Translators: input help message for a Golden Cursor command.
-#		description=_("Changes mouse movement unit"),
-#		gesture="kb:nvda+windows+c"
-#	)
-#	def script_mouseMovementChange(self, gesture):
-#		pixelUnits = (1, 5, 10, 20, 50, 100)
-#		movementUnit = config.conf["goldenCursor"]["mouseMovementUnit"]
-#		pixelUnitChoices = len(pixelUnits)
-#		try:
-#			index = pixelUnits.index(movementUnit)
-#			movementUnit = pixelUnits[(index + 1) % pixelUnitChoices]
-#		except ValueError:
-#			for unit in pixelUnits:
-#				# No need to check for equality because the try block does this already.
-#				if movementUnit < unit:
-#					movementUnit = unit
-#					break
-#		config.conf["goldenCursor"]["mouseMovementUnit"] = movementUnit
-#		ui.message(str(movementUnit))
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor add-on command.
-#		description=_("toggles reporting of mouse coordinates in pixels when mouse moves"),
-#		gesture="kb:nvda+windows+s"
-#	)
-#	def script_toggleSpeakPixels(self, gesture):
-#		sayPixel = config.conf["goldenCursor"]["reportNewMouseCoordinates"]
-#		sayPixel = not sayPixel
-#		if sayPixel:
-#			# Translators: reported when new mouse coordinate announcement is on.
-#			ui.message(_("Report new mouse coordinates on"))
-#		else:
-#			# Translators: reported when new mouse coordinate announcement is on.
-#			ui.message(_("Report new mouse coordinates off"))
-#		config.conf["goldenCursor"]["reportNewMouseCoordinates"] = sayPixel
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Reports current X and Y mouse position"),
-#		gesture="kb:nvda+windows+p"
-#	)
-#	def script_sayPosition(self, gesture):
-#		reportMousePosition()
-#
-#	@scriptHandler.script(
-#		# Translators: input help mode message for a Golden Cursor add-on command.
-#		description=_("Toggles mouse arrows to move the mouse with the arrow keys"),
-#		gesture="kb:nvda+windows+m"
-#	)
-#	def script_toggleMouseArrows(self, gesture):
-#		self.mouseArrows = not self.mouseArrows
-#		if self.mouseArrows:
-#			self.bindGesture("kb:rightArrow", "moveMouseRight")
-#			self.bindGesture("kb:leftArrow", "moveMouseLeft")
-#			self.bindGesture("kb:downArrow", "moveMouseDown")
-#			self.bindGesture("kb:upArrow", "moveMouseUp")
-#			# Translators: presented when toggling mouse arrows feature.
-#			ui.message(_("Mouse arrows on"))
-#		else:
-#			self.clearGestureBindings()
-#			self.bindGestures(self.__gestures)
-#			# Translators: presented when toggling mouse arrows feature.
-#			ui.message(_("Mouse arrows off"))
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Moves the Mouse pointer to the right"),
-#		gesture="kb:nvda+windows+rightArrow"
-#	)
-#	def script_moveMouseRight(self, gesture):
-#		self.moveMouse(GCMouseRight)
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Moves the Mouse pointer to the left"),
-#		gesture="kb:nvda+windows+leftArrow"
-#	)
-#	def script_moveMouseLeft(self, gesture):
-#		self.moveMouse(GCMouseLeft)
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Moves the Mouse pointer down"),
-#		gesture="kb:nvda+windows+downArrow"
-#	)
-#	def script_moveMouseDown(self, gesture):
-#		self.moveMouse(GCMouseDown)
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Moves the Mouse pointer up"),
-#		gesture="kb:nvda+windows+upArrow"
-#	)
-#	def script_moveMouseUp(self, gesture):
-#		self.moveMouse(GCMouseUp)
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Opens a dialog to enter the X and Y coordinates for the mouse to move to"),
-#		gesture="kb:nvda+windows+j"
-#	)
-#	def script_goToPosition(self, gesture):
-#		try:
-#			d = PositionsList(parent=gui.mainFrame, goto=True)
-#			gui.mainFrame.prePopup()
-#			d.Raise()
-#			d.Show()
-#			gui.mainFrame.postPopup()
-#		except RuntimeError:
-#			pass
-#
-#	@scriptHandler.script(
-#		# Translators: Input help message for a Golden Cursor command.
-#		description=_("Toggles mouse movement restriction between current application and unrestricted"),
-#		gesture="kb:nvda+windows+r"
-#	)
-#	def script_toggleMouseRestriction(self, gesture):
-#		self.getAppRestriction = self.getMouse()
-#		self.restriction = not self.restriction
-#		if self.restriction:
-#			# Translators: presented when mouse movement is restricted to current application.
-#			ui.message(_("Mouse movement restricted to current application"))
-#		else:
-#			# Translators: presented when mouse movement is unrestricted.
-#			ui.message(_("Mouse movement unrestricted"))
-#
-#	def moveMouse(self, direction):
-#		w, h = api.getDesktopObject().location[2:]
-#		x, y = winUser.getCursorPos()
-#		oldX, oldY = x, y
-#		pixelMoving = config.conf["goldenCursor"]["mouseMovementUnit"]
-#		if direction == GCMouseRight:
-#			x += pixelMoving
-#		elif direction == GCMouseLeft:
-#			x -= pixelMoving
-#		elif direction == GCMouseDown:
-#			y += pixelMoving
-#		elif direction == GCMouseUp:
-#			y -= pixelMoving
-#		# Just do a chain comparison, as it is a lot faster.
-#		if 0 <= x < w and 0 <= y < h:
-#			setMousePosition(x, y)
-#		else:
-#			wx.Bell()
-#			return
-#		if self.restriction and self.getAppRestriction.appModule.appName != self.getMouse().appModule.appName:
-#			wx.Bell()
-#			setMousePosition(oldX, oldY)
-#			if self.getAppRestriction.appModule.appName != self.getMouse().appModule.appName:
-#				x, y, w, h = self.getAppRestriction.location
-#				setMousePosition(x, y)
-#			return
-#		if config.conf["goldenCursor"]["reportNewMouseCoordinates"]:
-#			ui.message(str(x if direction in (GCMouseRight, GCMouseLeft) else y))
-#
-#	def getMouse(self):
-#		return api.getDesktopObject().objectFromPoint(*winUser.getCursorPos())
-#
-#
+
 ## Add-on config database
 ## Borrowed from Enhanced Touch Gestures by Joseph Lee
 #confspec = {

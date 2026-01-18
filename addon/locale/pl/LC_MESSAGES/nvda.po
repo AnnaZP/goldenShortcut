@@ -135,3 +135,24 @@ msgstr "Golden Shortcut"
 msgid "Opens a dialog listing profiles for the current application"
 msgstr ""
 "Otwiera dialog pokazujący wszystkie profile dla aktualnej aplikacji"
+
+msgid "Braille"
+msgstr "Brajl"
+
+msgid "Configuration"
+msgstr "Ustawienia"
+
+msgid "Moves the braille display to the previous line"
+msgstr "Przenosi linijkę brajlowską do poprzedniej linii"
+
+msgid "Moves the braille display to the next line"
+msgstr "Przenosi linijkę brajlowską do następnej linii"
+
+msgid "Scrolls the braille display back"
+msgstr "Przewija brajl do tyłu"
+
+msgid "Scrolls the braille display forward"
+msgstr "Przewija brajl w przód"
+
+msgid "Shows NVDA's braille settings"
+msgstr "Otwiera Ustawienia brajla"
